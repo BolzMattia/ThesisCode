@@ -1,0 +1,10 @@
+pandas
+numpy
+matplotlib
+seaborn
+tensorflow
+rpy2
+arch
+tzlocal
+scikit-learn
+scipy
