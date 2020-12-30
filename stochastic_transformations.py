@@ -4,7 +4,8 @@ import tensorflow_probability as tfp
 import mean_covariance_models as M
 from utils import matrix2line_diagFunc, matrix2line_diagFunc_timeseries, indexes_librarian
 
-_standard_gaussian = tfp.distributions.Normal(np.float32(0.0),np.float32(1.0))
+_standard_gaussian = tfp.distributions.Normal(np.float32(0.0), np.float32(1.0))
+
 
 class LinearProjector:
     """Represent an affine projection"""
@@ -98,7 +99,7 @@ class LinearProjectorGaussianPosterior:
             log_jacobian = tf.zeros(1, dtype=tf.float32)
         else:
             log_jacobian = tf.math.log(tf.math.abs(tf.linalg.det(A)))
-        #Regularization term, analogous to a non-informative prior on the net parameters
+        # Regularization term, analogous to a non-informative prior on the net parameters
         # log_jacobian += (tf.reduce_sum(self.pdf_regularization_A.log_prob(A))
         #                  + tf.reduce_sum(self.pdf_regularization_b.log_prob(b)))
         variables = [self.A_mean, self._A_std, self.b_mean, self._b_std]
@@ -209,9 +210,12 @@ class AutoEncoder:
                  input_dim: int,
                  encoder_layers_dim: list,
                  encode_dim: int,
-                 decoder_layers_dim: list):
+                 decoder_layers_dim: list,
+                 encoder_center=None, decoder_center=None):
         self.encoder, _ = MLP(input_dim, encoder_layers_dim, encode_dim)
         self.decoder, _ = MLP(encode_dim, decoder_layers_dim, input_dim)
+        self.encoder_center = encoder_center
+        self.decoder_center = decoder_center
 
     def __call__(self, x, regularization_penalty=0.0, variables=[]):
         """
@@ -223,9 +227,14 @@ class AutoEncoder:
         """
         z, regularization_penalty, variables = self.encoder(
             x, regularization_penalty, variables)
+        if self.encoder_center is not None:
+            z += self.encoder_center(x)
         x_hat, regularization_penalty, variables = self.decoder(
             z, regularization_penalty, variables)
+        if self.decoder_center is not None:
+            x_hat += self.decoder_center(z)
         regularization_penalty += reconstruction_loss_quadratic(x, x_hat)
+        print(f'AE REC-LOSS: {reconstruction_loss_quadratic(x, x_hat)}')
         return z, regularization_penalty, variables
 
 
@@ -285,7 +294,7 @@ def GaussianDiagonalReparametrizationSampler(x, n):
     sigma = tf.math.softplus(x[:, n:])
     pdf = tfp.distributions.Normal(mu, sigma)
     z = pdf.sample()
-    prior_regularization = tf.reduce_sum( _standard_gaussian.log_prob(z), axis=1)
+    prior_regularization = tf.reduce_sum(_standard_gaussian.log_prob(z), axis=1)
     entropy = tf.reduce_sum(pdf.entropy(), axis=1)
     return z, entropy + prior_regularization
 
@@ -298,7 +307,8 @@ class VariationalAutoEncoder:
                  encoder_layers_dim: list,
                  encode_dim: int,
                  decoder_layers_dim: list,
-                 diagonal_covariance=True):
+                 diagonal_covariance=True,
+                 encoder_center=None, decoder_center=None):
         self.encode_dim = encode_dim
         if diagonal_covariance:
             encode_parameters_dim = 2 * encode_dim
@@ -308,6 +318,8 @@ class VariationalAutoEncoder:
             self.reparametrization_trick = GaussianReparametrizationSampler
         self.encoder, _ = MLP(input_dim, encoder_layers_dim, encode_parameters_dim, init_scale=1e-2)
         self.decoder, _ = MLP(encode_dim, decoder_layers_dim, input_dim)
+        self.encoder_center = encoder_center
+        self.decoder_center = decoder_center
 
     def __call__(self, x, regularization_penalty=0.0, variables=[]):
         """
@@ -320,8 +332,13 @@ class VariationalAutoEncoder:
         z_parameters, regularization_penalty, variables = self.encoder(
             x, regularization_penalty, variables)
         z, entropy = self.reparametrization_trick(z_parameters, self.encode_dim)
+        if self.encoder_center is not None:
+            z += self.encoder_center(x)
         x_hat, regularization_penalty, variables = self.decoder(z, regularization_penalty, variables)
+        if self.decoder_center is not None:
+            x_hat += self.decoder_center(z)
         regularization_penalty += reconstruction_loss_quadratic(x, x_hat) - entropy
+        print(f'VAE REC-LOSS: {reconstruction_loss_quadratic(x, x_hat)}')
         return z, regularization_penalty, variables
 
 

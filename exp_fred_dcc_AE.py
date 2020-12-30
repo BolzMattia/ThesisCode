@@ -6,7 +6,7 @@ import mean_covariance_models as M
 import timeseries_transformations as T
 
 if __name__ == '__main__':
-    experiment_name = 'fred_dcc_AE_1010'
+    experiment_name = 'fred_dcc_AE_pca'
     dataset_name = 'FRED'
     baseline_model = 'dcc'
     hidden_layer_dim = 32

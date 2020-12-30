@@ -11,7 +11,7 @@ if __name__ == '__main__':
     baseline_model = 'dcc'
     hidden_layer_dim = 32
     batch_size = 16
-    total_epochs = 30000
+    total_epochs = 50000
     plot_points = 30
 
     # Data from .csv
