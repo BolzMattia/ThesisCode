@@ -7,7 +7,7 @@ import timeseries_transformations as T
 
 
 if __name__ == '__main__':
-    experiment_name = 'testing_main'
+    experiment_name = 'testing'
     dataset_name = 'PTF'
     baseline_model = 'dcc'
     hidden_layer_dim = 32
@@ -32,22 +32,31 @@ if __name__ == '__main__':
     states_line = [M.mu_vcv_linearize(**states) for states in dsf[baseline_model]]
     dsf.withColumn(baseline_model_line, *states_line)
     dsf.withColumn('crosses', *T.elements_cross(*dsf['y']))
-    dsf.withColumn('x_timesteps', *T.lagify(*dsf['y'], lag=12, collapse=False))
-    dsf.withColumn('x', *T.lagify(*dsf['y'], lag=12, collapse=True))
+    dsf.withColumn('x_timesteps', *T.lagify(*dsf['y'], lag=6, collapse=False))
+    dsf.withColumn('x', *T.lagify(*dsf['y'], lag=6, collapse=True))
     dsf.dropna()
 
     models = {
         'DCC + vae': CholeskyAutoEncoder(
             dsf, 'x', 'y', baseline_model_line,
             variational_reparametrization=True,
-            encoder_layers_dim=[hidden_layer_dim for i in range(5)],
+            encoder_layers_dim=[hidden_layer_dim for i in range(2)],
             encode_dim=5,
-            forecaster_layers_dim=[hidden_layer_dim for i in range(5)],
+            forecaster_layers_dim=[hidden_layer_dim for i in range(2)],
+            PCA_center=True,
             init_scale=3e-2, learning_rate=3e-2),
-        'DCC + Bayesian mlp': CholeskyMLP(dsf, 'x', 'y', baseline_model_line,
-                                          hidden_layers_dim=[hidden_layer_dim for i in range(5)],
-                                          gaussian_posterior=True,
-                                          init_scale=5e-2, learning_rate=3e-4, beta_1=0.9),
+        'DCC + ae': CholeskyAutoEncoder(
+            dsf, 'x', 'y', baseline_model_line,
+            variational_reparametrization=False,
+            encoder_layers_dim=[hidden_layer_dim for i in range(2)],
+            encode_dim=5,
+            forecaster_layers_dim=[hidden_layer_dim for i in range(2)],
+            PCA_center=True,
+            init_scale=3e-2, learning_rate=3e-2),
+        # 'DCC + Bayesian mlp': CholeskyMLP(dsf, 'x', 'y', baseline_model_line,
+        #                                   hidden_layers_dim=[hidden_layer_dim for i in range(5)],
+        #                                   gaussian_posterior=True,
+        #                                   init_scale=5e-2, learning_rate=3e-4, beta_1=0.9),
     }
 
     main_experiment(dsf,

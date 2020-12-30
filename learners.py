@@ -8,6 +8,7 @@ import mean_covariance_models as M
 import optimizers as O
 from econometrics_problem import DatasetFactory
 from hvi import hierarchical_sampler
+from sklearn.decomposition import PCA
 
 
 def decorator_multi_particles_predict(predict):
@@ -17,6 +18,7 @@ def decorator_multi_particles_predict(predict):
     :param predict: The predict function
     :return: The decorated predict operation
     """
+
     def multi_particles_predict(n_particles, **kwargs):
         llkls_all = []
         prior_all = []
@@ -41,6 +43,7 @@ class AbstractCholeskyForecaster:
     """This class represent a probabilistic forecaster that maps the input to a line vector
     then reconstruct mean-cvoariance state variables reparametrizing the line vector.
     The parameters learning happens through SGD optimization and a prior computation is managed."""
+
     def __init__(self, shaper, prior, optimizer, x_col, y_col, states0_line_col,
                  jacobian_penalty=False, n_particles_forecast=1):
         self.shaper = shaper
@@ -97,7 +100,7 @@ class AbstractCholeskyForecaster:
             # Computes the model posterior
             llkl, lprior, regularization_penalty, _, _, variables = self.posterior(x_t, y_t, states0_line)
             # Correct the log-likelihood estimator wrt the batch size
-            elbo = (llkl + lprior)* dsf.get_length()[0][0] - regularization_penalty
+            elbo = (llkl + lprior) * dsf.get_length()[0][0] - regularization_penalty
             elbo = tf.reduce_mean(elbo)
             _elbo = elbo.numpy()
             if verbose > 0:
@@ -148,6 +151,7 @@ class AbstractCholeskyForecaster:
 
 class CholeskyMLP(AbstractCholeskyForecaster):
     """Represent a Cholesky forecaster with an MLP network"""
+
     def __init__(self, dsf, x_col, y_col, states0_line_col,
                  hidden_layers_dim=[10, 10], gaussian_posterior=False,
                  empirical_prior=True,
@@ -183,10 +187,11 @@ class CholeskyMLP(AbstractCholeskyForecaster):
 
 class CholeskyAutoEncoder(AbstractCholeskyForecaster):
     """Represent a Cholesky forecaster with an Autoencoder+MLP network"""
+
     def __init__(self, dsf, x_col, y_col, states0_line_col,
                  encoder_layers_dim=[10, 10], encode_dim=5, decoder_layers_dim=[10, 10],
                  forecaster_layers_dim=[10, 10], variational_reparametrization=False,
-                 empirical_prior=True,
+                 empirical_prior=True, PCA_center=False,
                  init_scale=1e-2, learning_rate=1e-4, beta_1=0.1):
         x, y, states0_line = dsf.select([x_col, y_col, states0_line_col], train=True, test=False)
         n = y.shape[1]
@@ -205,9 +210,19 @@ class CholeskyAutoEncoder(AbstractCholeskyForecaster):
             linear_projector = S.LinearProjector
             n_particles_forecast = 1
             jacobian_penalty = False
-        AE = auto_encoder_class(x.shape[1], encoder_layers_dim, encode_dim, decoder_layers_dim)
+        if PCA_center:
+            pca = PCA(n_components=encode_dim)
+            pca.fit(x, x)
+            encoder_center = pca.transform
+            decoder_center = pca.inverse_transform
+        else:
+            encoder_center = None
+            decoder_center = None
+        AE = auto_encoder_class(x.shape[1], encoder_layers_dim, encode_dim, decoder_layers_dim,
+                                encoder_center=encoder_center, decoder_center=decoder_center)
         # 2- The forecaster
-        mlp, _ = S.MLP(encode_dim, forecaster_layers_dim, states0_line.shape[1], init_scale=init_scale, linear_projector=linear_projector)
+        mlp, _ = S.MLP(encode_dim, forecaster_layers_dim, states0_line.shape[1], init_scale=init_scale,
+                       linear_projector=linear_projector)
 
         optimizer = O.optimizer_adam(learning_rate=learning_rate, beta_1=beta_1)
         if empirical_prior:
@@ -225,6 +240,7 @@ class CholeskyAutoEncoder(AbstractCholeskyForecaster):
 
 class CholeskyLSTM(AbstractCholeskyForecaster):
     """Represent a Cholesky forecaster with an LSTM+MLP network"""
+
     def __init__(self, dsf, x_col, y_col, states0_line_col,
                  recurrent_dim=5, mlp_post_lstm_layers_dim=[10, 10],
                  empirical_prior=True, gaussian_posterior=False,
@@ -257,9 +273,11 @@ class CholeskyLSTM(AbstractCholeskyForecaster):
                                             jacobian_penalty=jacobian_penalty,
                                             n_particles_forecast=n_particles_forecast)
 
+
 class HVIstaticMuVcv(AbstractCholeskyForecaster):
     """This class represent a VI estimator of the mean-covariance matrix,
     obtained using HVI on an initial linearized estimate of a mean-covariance matrix"""
+
     def __init__(self, dsf, y_col, states0_line_col,
                  hvi_layers_num=3,
                  empirical_prior=True,
@@ -270,7 +288,7 @@ class HVIstaticMuVcv(AbstractCholeskyForecaster):
         assert d == int(n * (n + 1) / 2 + n)
 
         # Creates the networks for the estimates:
-        sampler = hierarchical_sampler(d, layers= hvi_layers_num, init_scale=init_scale)
+        sampler = hierarchical_sampler(d, layers=hvi_layers_num, init_scale=init_scale)
 
         def shaper(x, regularization_penalty=0.0, variables=[]):
             y, logJ, v = sampler.sample(1)
@@ -328,6 +346,7 @@ if __name__ == '__main__':
     print(llkl, p0, log_p)
 
     import pdb
+
     pdb.set_trace()
 
     # bayesian mlp
