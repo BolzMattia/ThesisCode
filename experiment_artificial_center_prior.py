@@ -100,7 +100,7 @@ if __name__ == '__main__':
         experiment_name = f'N5_center_prior_run_{i}'
         config['seed'] = i
         experiment_dir, config = setup_experiment(experiment_name, config)
-        # experiment(experiment_dir, **config)
+        experiment(experiment_dir, **config)
 
     config = {
         "seed": 0,

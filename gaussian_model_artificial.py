@@ -16,6 +16,7 @@ class ToyMuEtaProblem:
     Represent an artificial problem for Bayesian inference.
     The problem uses a conjugate Gaussian-Wishart prior with Gaussian likelihood.
     """
+
     def __init__(self,
                  T=None,
                  N=None,
@@ -25,6 +26,7 @@ class ToyMuEtaProblem:
                  p0_k=None,
                  p0_nu=None,
                  p0_eta=None,
+                 scale_variabily=1.0,
                  center_prior=False):
         '''
         Construct a toy Bayesian problem with Gaussian density.
@@ -50,7 +52,7 @@ class ToyMuEtaProblem:
         if real_mu is None:
             real_mu = np.zeros(N, dtype=np.float32)
         if real_eta is None:
-            real_eta = np.eye(N)#np.float32(sps.wishart.rvs(N*T, np.eye(N) / N*T))
+            real_eta = np.eye(N) * scale_variabily  # np.float32(sps.wishart.rvs(N*T, np.eye(N) / N*T))
 
         # Data generation
         y = np.float32(np.random.randn(T, N))
@@ -366,7 +368,7 @@ def plot_results(df_results, save_path=None, save_formats=['eps', 'png']):
 
 
 class gaussian_problem:
-    def __init__(self, N, T, center_prior=False, **kwargs):
+    def __init__(self, N, T, center_prior=False, scale_variability=1.0, **kwargs):
         '''
         Wrapper that creates a Gaussian problem.
         :param N: Dimension of the observations
@@ -377,7 +379,7 @@ class gaussian_problem:
         :type kwargs: -
         '''
         d = int(N * (N + 1) / 2) + N
-        problem = ToyMuEtaProblem(T, N, center_prior=center_prior)
+        problem = ToyMuEtaProblem(T, N, center_prior=center_prior, scale_variabily=scale_variability)
         bayes_factor, truth = problem.print_exact_posterior()
         self.bayes_factor = bayes_factor
         self.d = d

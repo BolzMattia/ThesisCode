@@ -117,7 +117,7 @@ def setup_experiment(experiment_dir, config):
 
 
 if __name__ == '__main__':
-    number_of_runs = 1
+    number_of_runs = 3
     config = {
         "seed": 0,
         "problem": {
@@ -212,11 +212,11 @@ if __name__ == '__main__':
     }
     # Set config to None ro read the file in the experiment directory
     # config = None
-    for i in range(number_of_runs):
+    for i in range(1, number_of_runs + 1):
         experiment_name = f'N5_run_{i}'
-        config['seed'] = i
+        config['problem']['scale_variability'] = 2*i - 1
         experiment_dir, config = setup_experiment(experiment_name, config)
-        #experiment(experiment_dir, **config)
+        experiment(experiment_dir, **config)
 
     config = {
         "seed": 0,
@@ -227,17 +227,17 @@ if __name__ == '__main__':
             "center_prior": False,
         },
         "methods": [
-             {
-                 "kind": "mcmc",
-                 "name": "mcmc - uniform",
-                 "choice": "uniform",
-                 "config": {
-                     "step_size": 0.04,
-                     "num_results": 2800,
-                     "num_chains": 100,
-                     "num_burnin_steps": 1
-                 }
-             },
+            {
+                "kind": "mcmc",
+                "name": "mcmc - uniform",
+                "choice": "uniform",
+                "config": {
+                    "step_size": 0.04,
+                    "num_results": 2800,
+                    "num_chains": 100,
+                    "num_burnin_steps": 1
+                }
+            },
             {
                 "kind": "hvi",
                 "name": "hvi-q=5",
@@ -312,9 +312,9 @@ if __name__ == '__main__':
     }
     # Set config to None ro read the file in the experiment directory
     # config = None
-    for i in range(number_of_runs):
+    for i in range(1, number_of_runs + 1):
         experiment_name = f'N10_run_{i}'
-        config['seed'] = i
+        config['problem']['scale_variability'] = 2*i - 1
         experiment_dir, config = setup_experiment(experiment_name, config)
         #experiment(experiment_dir, **config)
 
@@ -412,8 +412,8 @@ if __name__ == '__main__':
     }
     # Set config to None ro read the file in the experiment directory
     # config = None
-    for i in range(number_of_runs):
-        experiment_name = f'N15_run_1010_{i}'
-        config['seed'] = i
+    for i in range(1, number_of_runs + 1):
+        experiment_name = f'N15_run_{i}'
+        config['problem']['scale_variability'] = 2*i - 1
         experiment_dir, config = setup_experiment(experiment_name, config)
         experiment(experiment_dir, **config)
